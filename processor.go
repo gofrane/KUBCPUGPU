@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 )
+
 /*
 type CurrentRunning struct {
 
@@ -24,18 +25,18 @@ type CurrentRunningList struct {
 }
 */
 var (
-	processorLock       = &sync.Mutex{}
-	succeeddedPodLength int
-	failedPodLength     int
-	runningPodLength     int
-	verifSucceedded     = true
-	verifFailed         = true
-	verifRunning        = true
+	processorLock          = &sync.Mutex{}
+	succeeddedPodLength    int
+	failedPodLength        int
+	runningPodLength       int
+	verifSucceedded        = true
+	verifFailed            = true
+	verifRunning           = true
 	RunningStartTable      []time.Time
 	timePendingTable       []time.Time
-	timeFinishPendingTable  []time.Time
-	timePodMatchedTable      []time.Time
-	timePodMatched          time.Time
+	timeFinishPendingTable []time.Time
+	timePodMatchedTable    []time.Time
+	timePodMatched         time.Time
 	//RunningList CurrentRunningList
 	//RunningPodTableLength int
 )
@@ -57,28 +58,25 @@ func reconcileUnscheduledPods(interval int, done chan struct{}, wg *sync.WaitGro
 
 			if errRunningPod == nil {
 				if verifRunning {
-					runningPodLength= len(RunningPods.Items)
+					runningPodLength = len(RunningPods.Items)
 					//addPodtoDBrunning(0, 1, RunningPods,time.Time{})
 
-					RunningStartTable=appendRunningPodTable(RunningPods, 0 , len(RunningPods.Items)) //the RunningStartTable has the start tome of each pod
+					RunningStartTable = appendRunningPodTable(RunningPods, 0, len(RunningPods.Items)) //the RunningStartTable has the start tome of each pod
 
 					verifRunning = false
 
 				}
 
-
-
 				if runningPodLength != len(RunningPods.Items) { // if the ruuning PodLength change that means add or remobe 1 pod for the running lsit
-					timeStartRunning:= time.Now().UTC() // approximately it is the time of start running after container creation
+					timeStartRunning := time.Now().UTC() // approximately it is the time of start running after container creation
 
 					sort.Sort(sort.Reverse(sortListPod(RunningPods.Items))) //Sort the RunningPods
-					if CheckRunningStartTable(*RunningPods.Items[0].Status.StartTime,RunningStartTable) ==false{
-						RunningList.appendCurrentRunning(RunningPods.Items[0] ,timeStartRunning )
+					if CheckRunningStartTable(*RunningPods.Items[0].Status.StartTime, RunningStartTable) == false {
+						RunningList.appendCurrentRunning(RunningPods.Items[0], timeStartRunning)
 						// RunningStartTable = appendRunningPodTable(RunningPods, len(RunningPods.Items), len(RunningPods.Items)+1)
 						RunningStartTable = append(RunningStartTable, *RunningPods.Items[0].Status.StartTime)
 
-
-						addPodtoDBrunning(0, 1, RunningPods,timeStartRunning)
+						addPodtoDBrunning(0, 1, RunningPods, timeStartRunning)
 
 						//runningPodLength  take new length of RunningPods
 						//runningPodLength = len(RunningPods.Items)
@@ -87,21 +85,10 @@ func reconcileUnscheduledPods(interval int, done chan struct{}, wg *sync.WaitGro
 
 				}
 
-
-
-
-
-
-
-
-
-
-
 			}
 		}
 	}
 }
-
 
 /*
 func ( RunningList *CurrentRunningList )appendCurrentRunning(lastPod Pod ,timeStartRunning time.Time ){
@@ -157,21 +144,7 @@ func ( RunningList *CurrentRunningList )deletePodCurrentRunningList(SucceededPod
 
 */
 
-
-
 ////////////////////////////////////////////
-
-
-
-
-
-
-
-
-
-
-
-
 
 //////////////////////////////////////////////////
 
@@ -199,18 +172,16 @@ func monitorUnscheduledPods(done chan struct{}, wg *sync.WaitGroup) {
 }
 
 func schedulePod(pod *Pod) error {
-	var 	mutex  sync.Mutex
-
-
+	var mutex sync.Mutex
 
 	mutex.Lock()
 	defer mutex.Unlock()
-	newTimeStartPending:= time.Now().UTC()
-	timePendingTable =append(timePendingTable,newTimeStartPending)
+	newTimeStartPending := time.Now().UTC()
+	timePendingTable = append(timePendingTable, newTimeStartPending)
 
 	fmt.Println("time Start Pending  ", newTimeStartPending)
 	SucceededPods, errSucceededPod := getSucceededPods()
-	if (len(RunningList.List)>0) && ( len(SucceededPods.Items)>0){
+	if (len(RunningList.List) > 0) && (len(SucceededPods.Items) > 0) {
 		RunningList.deletePodCurrentRunningList(SucceededPods)
 
 	}
@@ -223,10 +194,10 @@ func schedulePod(pod *Pod) error {
 		}
 
 		if succeeddedPodLength < len(SucceededPods.Items) {
-			PendingLength:=len(timePendingTable)
+			PendingLength := len(timePendingTable)
 			sort.Sort(sort.Reverse(sortListPod(SucceededPods.Items)))
 			fmt.Println(SucceededPods.Items[0])
-			addPodtoDB(0,   len(SucceededPods.Items)-succeeddedPodLength  , SucceededPods,timePendingTable[PendingLength-2],timePodMatchedTable[PendingLength-1])
+			addPodtoDB(0, len(SucceededPods.Items)-succeeddedPodLength, SucceededPods, timePendingTable[PendingLength-2], timePodMatchedTable[PendingLength-1])
 
 			succeeddedPodLength = len(SucceededPods.Items)
 
@@ -240,33 +211,27 @@ func schedulePod(pod *Pod) error {
 		return fmt.Errorf("Unable to schedule pod (%s) failed to fit in any node", pod.Metadata.Name)
 	}
 
-
-	if len(WaitingGPUPod.List)>0 {
+	if len(WaitingGPUPod.List) > 0 {
 		WaitingGPUPod.deleteWaitingGPUPod(SucceededPods, RunningList)
 	}
 
 	imagePending := getImage(pod)
 	imagePendingCPU, ImagePendingGPU, _ := db.imageSearch(imagePending)
 
-
 	InformationTable := db.informationSearch(imagePending)
-
 
 	pod, node, err := decison(nodes, pod, imagePending, imagePendingCPU, ImagePendingGPU, InformationTable)
 
-
-
-
-	pods , _:=config.UpdatePod(pod.Metadata.Name)
-	fmt.Println("the newwwwwwwwwwww",pods)
-	fmt.Println(pods)
-	if err != nil {
-		return err
-	}
+	config.UpdatePod2(pod.Metadata.Name)
+	//fmt.Println("the newwwwwwwwwwww",pods)
+	//fmt.Println(pods)
+	//if err != nil {
+	//	return err
+	//}
 
 	err = bind(pod, node)
-	timePodMatched= time.Now().UTC()
-	timePodMatchedTable =append(timePodMatchedTable,timePodMatched)
+	timePodMatched = time.Now().UTC()
+	timePodMatchedTable = append(timePodMatchedTable, timePodMatched)
 
 	if err != nil {
 		return err

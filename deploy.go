@@ -7,12 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"k8s.io/apimachinery/pkg/fields"
 	"sync"
 
 	"k8s.io/client-go/kubernetes"
@@ -21,12 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
-
-
-
-
-func ( configFile *ConfigFile) openFile (){
+func (configFile *ConfigFile) openFile() {
 
 	if home := homedir.HomeDir(); home != "" { // check if machine has home directory.
 		// re
@@ -50,50 +45,62 @@ func ( configFile *ConfigFile) openFile (){
 
 }
 
+func (configFile *ConfigFile) UpdatePod(oldPodName string) (*v1.Pod, error) {
 
-
-func ( configFile *ConfigFile) UpdatePod(oldPodName string )  (*v1.Pod,error) {
-
-	var 	mutex  sync.Mutex
-
-
+	var mutex sync.Mutex
 
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	fmt.Println("  oldPodName" , oldPodName)
+	fmt.Println("  oldPodName", oldPodName)
 
-
-	pods, _:= configFile.clientset.CoreV1().Pods("default").List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.name": oldPodName}).String()})
-	fmt.Println(" podsssssssssss" , pods)
+	pods, _ := configFile.clientset.CoreV1().Pods("default").List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.name": oldPodName}).String()})
+	fmt.Println(" podsssssssssss", pods)
 	graceperiod := int64(0)
-	modPod:=pods.Items[0]
+	modPod := pods.Items[0]
 	modPod.DeletionTimestamp = nil
 	err1 := configFile.clientset.CoreV1().Pods("default").Delete(oldPodName, &metav1.DeleteOptions{
 		GracePeriodSeconds: &graceperiod,
 	})
 	if err1 != nil {
-		return nil , err1
+		return nil, err1
 	}
 
+	newPod := getNewPod(modPod)
 
-	newPod:=getNewPod(modPod)
-
-
-	pod, err :=configFile.clientset.CoreV1().Pods("default").Create(newPod)
+	pod, err := configFile.clientset.CoreV1().Pods("default").Create(newPod)
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 
 	return pod, nil
 }
 
+func (configFile *ConfigFile) UpdatePod2(oldPodName string) {
 
+	var mutex sync.Mutex
 
+	mutex.Lock()
+	defer mutex.Unlock()
 
+	fmt.Println("  oldPodName", oldPodName)
 
+	//pods, _ := configFile.clientset.CoreV1().Pods("default").List(metav1.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.name": oldPodName}).String()})
+	//fmt.Println(" podsssssssssss TIME NEWWWWWWWWWWW", pods.Items[0].Name)
 
-func getNewPod(oldPod v1.Pod ) *v1.Pod {
+	// Retrieve the latest version of Deployment before attempting update
+	// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+	result, getErr := configFile.clientset.CoreV1().Pods("default").Get(oldPodName, metav1.GetOptions{})
+	if getErr != nil {
+		panic(fmt.Errorf("Failed to get latest version of Deployment: %v", getErr))
+	}
+
+	result.Spec.Containers[0].Image = "gofrane/cudatest" // change nginx version
+	_, updateErr := configFile.clientset.CoreV1().Pods("default").Update(result)
+	fmt.Println(updateErr)
+}
+
+func getNewPod(oldPod v1.Pod) *v1.Pod {
 	oldContainer := oldPod.Spec.Containers[0]
 
 	newPod := &v1.Pod{
@@ -163,10 +170,7 @@ func getNewPod(oldPod v1.Pod ) *v1.Pod {
 
 }
 
-
-
-
-func addnewpod() (error) {
+func addnewpod() error {
 
 	pod := Pod{
 		ApiVersion: "batch/v1",
@@ -208,8 +212,8 @@ func addnewpod() (error) {
 		return err
 	}
 	if resp.StatusCode != 201 {
-		return  errors.New("Binding: Unexpected HTTP status code" + resp.Status)
+		return errors.New("Binding: Unexpected HTTP status code" + resp.Status)
 	}
-	return  err
+	return err
 
 }
