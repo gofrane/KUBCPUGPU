@@ -197,7 +197,10 @@ func schedulePod(pod *Pod) error {
 			PendingLength := len(timePendingTable)
 			sort.Sort(sort.Reverse(sortListPod(SucceededPods.Items)))
 			fmt.Println(SucceededPods.Items[0])
-			addPodtoDB(0, len(SucceededPods.Items)-succeeddedPodLength, SucceededPods, timePendingTable[PendingLength-1], timePodMatchedTable[PendingLength-1])
+			fmt.Println("", len(timePendingTable))
+			fmt.Println("", len(timePodMatchedTable))
+
+			addPodtoDB(0, len(SucceededPods.Items)-succeeddedPodLength, SucceededPods, timePendingTable[PendingLength-2], timePodMatchedTable[PendingLength-1])
 
 			succeeddedPodLength = len(SucceededPods.Items)
 
